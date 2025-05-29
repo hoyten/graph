@@ -64,28 +64,60 @@ INSERT INTO Cities (ID, CityName) VALUES
 (6, 'Воронеж'), (7, 'Нижний Новгород'), (8, 'Краснодар'), (9, 'Томск'), (10, 'Ростов-на-Дону');
 GO
 
--- Заполнение таблиц рёбер
+
+-- Усложнённые связи дружбы
+DELETE FROM FRIEND_OF;
+
 INSERT INTO FRIEND_OF ($from_id, $to_id) VALUES
 ((SELECT $node_id FROM Students WHERE ID = 1), (SELECT $node_id FROM Students WHERE ID = 2)),
-((SELECT $node_id FROM Students WHERE ID = 3), (SELECT $node_id FROM Students WHERE ID = 4)),
-((SELECT $node_id FROM Students WHERE ID = 5), (SELECT $node_id FROM Students WHERE ID = 6)),
-((SELECT $node_id FROM Students WHERE ID = 2), (SELECT $node_id FROM Students WHERE ID = 7)),
-((SELECT $node_id FROM Students WHERE ID = 1), (SELECT $node_id FROM Students WHERE ID = 8)),
-((SELECT $node_id FROM Students WHERE ID = 9), (SELECT $node_id FROM Students WHERE ID = 10));
+((SELECT $node_id FROM Students WHERE ID = 1), (SELECT $node_id FROM Students WHERE ID = 3)),
+((SELECT $node_id FROM Students WHERE ID = 2), (SELECT $node_id FROM Students WHERE ID = 4)),
+((SELECT $node_id FROM Students WHERE ID = 2), (SELECT $node_id FROM Students WHERE ID = 5)),
+((SELECT $node_id FROM Students WHERE ID = 3), (SELECT $node_id FROM Students WHERE ID = 6)),
+((SELECT $node_id FROM Students WHERE ID = 3), (SELECT $node_id FROM Students WHERE ID = 1)),
+((SELECT $node_id FROM Students WHERE ID = 4), (SELECT $node_id FROM Students WHERE ID = 5)),
+((SELECT $node_id FROM Students WHERE ID = 4), (SELECT $node_id FROM Students WHERE ID = 7)),
+((SELECT $node_id FROM Students WHERE ID = 4), (SELECT $node_id FROM Students WHERE ID = 8)),
+((SELECT $node_id FROM Students WHERE ID = 5), (SELECT $node_id FROM Students WHERE ID = 9)),
+((SELECT $node_id FROM Students WHERE ID = 6), (SELECT $node_id FROM Students WHERE ID = 10)),
+((SELECT $node_id FROM Students WHERE ID = 6), (SELECT $node_id FROM Students WHERE ID = 3)),
+((SELECT $node_id FROM Students WHERE ID = 10), (SELECT $node_id FROM Students WHERE ID = 1));
+
+
+-- Усложнённые связи проживания
+DELETE FROM LIVES_IN;
 
 INSERT INTO LIVES_IN ($from_id, $to_id) VALUES
 ((SELECT $node_id FROM Students WHERE ID = 1), (SELECT $node_id FROM Cities WHERE ID = 1)),
+((SELECT $node_id FROM Students WHERE ID = 3), (SELECT $node_id FROM Cities WHERE ID = 1)),
+((SELECT $node_id FROM Students WHERE ID = 10), (SELECT $node_id FROM Cities WHERE ID = 1)),
 ((SELECT $node_id FROM Students WHERE ID = 2), (SELECT $node_id FROM Cities WHERE ID = 2)),
-((SELECT $node_id FROM Students WHERE ID = 3), (SELECT $node_id FROM Cities WHERE ID = 3)),
-((SELECT $node_id FROM Students WHERE ID = 4), (SELECT $node_id FROM Cities WHERE ID = 4)),
-((SELECT $node_id FROM Students WHERE ID = 5), (SELECT $node_id FROM Cities WHERE ID = 5));
+((SELECT $node_id FROM Students WHERE ID = 6), (SELECT $node_id FROM Cities WHERE ID = 2)),
+((SELECT $node_id FROM Students WHERE ID = 4), (SELECT $node_id FROM Cities WHERE ID = 3)),
+((SELECT $node_id FROM Students WHERE ID = 5), (SELECT $node_id FROM Cities WHERE ID = 3)),
+((SELECT $node_id FROM Students WHERE ID = 7), (SELECT $node_id FROM Cities WHERE ID = 5)),
+((SELECT $node_id FROM Students WHERE ID = 8), (SELECT $node_id FROM Cities WHERE ID = 5)),
+((SELECT $node_id FROM Students WHERE ID = 9), (SELECT $node_id FROM Cities WHERE ID = 9));
+
+
+-- Усложнённые связи обучения
+DELETE FROM STUDIES;
 
 INSERT INTO STUDIES ($from_id, $to_id) VALUES
 ((SELECT $node_id FROM Students WHERE ID = 1), (SELECT $node_id FROM Subjects WHERE ID = 1)),
+((SELECT $node_id FROM Students WHERE ID = 1), (SELECT $node_id FROM Subjects WHERE ID = 5)),
 ((SELECT $node_id FROM Students WHERE ID = 2), (SELECT $node_id FROM Subjects WHERE ID = 2)),
+((SELECT $node_id FROM Students WHERE ID = 2), (SELECT $node_id FROM Subjects WHERE ID = 10)),
 ((SELECT $node_id FROM Students WHERE ID = 3), (SELECT $node_id FROM Subjects WHERE ID = 3)),
+((SELECT $node_id FROM Students WHERE ID = 3), (SELECT $node_id FROM Subjects WHERE ID = 6)),
 ((SELECT $node_id FROM Students WHERE ID = 4), (SELECT $node_id FROM Subjects WHERE ID = 4)),
-((SELECT $node_id FROM Students WHERE ID = 5), (SELECT $node_id FROM Subjects WHERE ID = 5));
+((SELECT $node_id FROM Students WHERE ID = 5), (SELECT $node_id FROM Subjects WHERE ID = 5)),
+((SELECT $node_id FROM Students WHERE ID = 5), (SELECT $node_id FROM Subjects WHERE ID = 7)),
+((SELECT $node_id FROM Students WHERE ID = 6), (SELECT $node_id FROM Subjects WHERE ID = 1)),
+((SELECT $node_id FROM Students WHERE ID = 6), (SELECT $node_id FROM Subjects WHERE ID = 4)),
+((SELECT $node_id FROM Students WHERE ID = 10), (SELECT $node_id FROM Subjects WHERE ID = 9)),
+((SELECT $node_id FROM Students WHERE ID = 10), (SELECT $node_id FROM Subjects WHERE ID = 10));
+
 GO
 
 -- Удаление представлений, если они существуют
@@ -145,8 +177,39 @@ FROM Students s, STUDIES st, Subjects sub
 WHERE MATCH(s-(st)->sub);
 GO
 
+-- 1. Сначала добавляем столбцы с изображениями в таблицы
+ALTER TABLE Students ADD Image NVARCHAR(100);
+ALTER TABLE Cities ADD Image NVARCHAR(100);
+ALTER TABLE Subjects ADD Image NVARCHAR(100);
+GO
+
+-- 2. Затем заполняем их значениями
+UPDATE Students SET Image = 'Friends' + CAST(ID AS NVARCHAR(10)) WHERE ID BETWEEN 1 AND 10;
+UPDATE Cities SET Image = 'City' + CAST(ID AS NVARCHAR(10)) WHERE ID BETWEEN 1 AND 10;
+UPDATE Subjects SET Image = 'Subject' + CAST(ID AS NVARCHAR(10)) WHERE ID BETWEEN 1 AND 10;
+GO
+
+-- 3. Только после этого пересоздаём представления
+DROP VIEW IF EXISTS vStudents;
+DROP VIEW IF EXISTS vSubjects;
+DROP VIEW IF EXISTS vCities;
+GO
+
+CREATE VIEW vStudents AS
+SELECT ID, Name, Image FROM Students;
+GO
+
+CREATE VIEW vSubjects AS
+SELECT ID, Title, Image FROM Subjects;
+GO
+
+CREATE VIEW vCities AS
+SELECT ID, CityName, Image FROM Cities;
+GO
+
 -- Примеры запросов для SQL Server Graph
 -- 1. Найти всех друзей Ани
+SELECT @@SERVERNAME
 SELECT s2.Name AS FriendName
 FROM Students s1, FRIEND_OF, Students s2
 WHERE MATCH(s1-(FRIEND_OF)->s2)
@@ -237,3 +300,4 @@ SELECT path, level AS distance
 FROM FriendPath
 ORDER BY level, path;
 GO
+
